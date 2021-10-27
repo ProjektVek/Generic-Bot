@@ -1,115 +1,77 @@
-import discord #Importing Discord.py
-import os #Importing .env
-import requests #allows http requests
-import json #for work with json
-import random
-from replit import db
-from keep_alive import keep_alive
+import datetime #importing datetime
+import discord #importing discord.py library
+from discord.ext import commands, tasks #importing commands and tasks from extensions
+import requests #library to use api's
 
-client = discord.Client() #Registering Discord Client
+bot = commands.Bot("!") #Bot invocation command
 
-sad_words = ['sad', 'depressed', 'unhappy', 'angry', 'miserable', 'depressing'] #List of word that will be detected
+@bot.event #on bot event
+async def on_ready(): #when bot is ready
+    print('Im Ready!')
+    print(f'Logged as {bot.user}')
+    current_time.start() #Starting task
 
-start_encouragements = [ #List of encouragement phrases
-    'Cheer up!',
-    'Hang in there',
-    'You are a great person!'
-]
-
-if "responding" not in db.keys(): #creating responding key
-    db["responding"] = True
-
-#function to insert new encouragement
-def update_encouragements(encouraging_message): 
-    if "encouragements" in db.keys(): #If "encouragements" is a database key
-        encouragements = db["encouragements"] #receives all encouragements from database
-        encouragements.append(encouraging_message) #insert encouraging message in database
-        db["encoragements"] = encouragements #update database
-    else:
-        db["encouragements"] = [encouraging_message] #creates the "encouragement in the database"
-
-#function to delete encouragement
-def delete_encouragement(index):
-    encouragements = db["encouragements"] #getting encouragements from db
-    if len(encouragements) > index: #if the index is valid
-        del encouragements[index] #delete the message in the defined index
-        db["encouragements"] = encouragements #update database
-
-#function to get quotes from API
-def get_quote(): 
-    response = requests.get("https://zenquotes.io/api/random") #Getting random quote from API zenquotes
-    json_data = json.loads(response.text)
-    quote = json_data[0]['q'] + " - " + json_data[0]['a']
-    return quote
-
-@client.event #Using Client to Register a Event
-async def on_ready(): #Declaring function on_ready; Will be triggered when bot is started
-    print('We have logged in as {0.user}'.format(client)) #0 gets substituted by "client"
-
-@client.event #This will triggers whenever that is a client event
+@bot.event
 async def on_message(message):
-    if message.author == client.user: #If the message is from this bot, do nothing
+    if message.author == bot.user:
         return
 
-    msg = message.content
+    """
+    #Deleting bad word message
+    if "palavrão" in message.content:
+        await massage.channel.send(f'Por favor, {message.author.name}, não ofenda os demais usuários!')
 
-    if message.content.startswith('$hello'): #Whenever the message starts with "hello"
-        await message.channel.send('Hello!') #Tries to send the message hello
+        await message.delete()
+    """
 
-    if message.content.startswith('$inspire'): #return a inspiritional quote from api
-        quote = get_quote()
-        await message.channel.send(quote)
+    await bot.process_commands(message)
 
-    if db["responding"]:
-        #Looking for all encouragement phrases
-        options = start_encouragements
-        if msg.startswith('report db'): #if report db was typed, it will report db search state
-            await message.channel.send('Looking in db...')
-        if "encouragements" in db.keys(): #if there are messages in database
-            options += db["encouragements"] #add this messages
-            if msg.startswith('report db'):
-                await message.channel.send('found')
-                await message.channel.send('Messages:\n{}'.format(options))
+@bot.command(name='oi') #name -> text after comment
+async def say_hello(ctx): #function to say hello | ctx = context
+    name = ctx.author.name
 
-    if any(word in msg for word in sad_words): #if it finds a "sad_word" in the message
-        await message.channel.send(random.choice(options)) #send a encouragement message
+    response = "Olá, " + name
 
-    #Add new messages
-    if msg.startswith('$new'): #if message starts with "$new"
-        encouraging_message = msg.split('$new',1)[1] #get the message
-        update_encouragements(encouraging_message)
-        await message.channel.send('New encouraging message added: ' + encouraging_message)
+    await ctx.send(response)
 
-    #deleting messages in db
-    if msg.startswith('$del'): #if message starts with "$del"
-        encouragements = [] #creating new list
-        if "encouragements" in db.keys():
-            index = int(msg.split('$del ',1)[1]) #getting the index
-            delete_encouragement(index) #deleting message
-            encouragements = db["encouragements"]
-        await message.channel.send(encouragements)
+#function to calculate
+@bot.command(name='calcular')
+async def calculate_expression(ctx, *expression): #getting context and expression // * -> creates a tuple (Join the arguments as one)
+    expression = "".join(expression) #this will join all expression with "" value after each element
+    response = eval(expression) #eval() -> Evaluates the final value of the expression (Use with caution, can be used to inject commands)
 
-    #getting list of encouragements
-    if msg.startswith('$list'):
-        encouragements = []
-        if "encouragements" in db.keys():
-            encouragements = db["encouragements"]
-        await message.channel.send(encouragements)
+#currency conversion
+@bot.command()
+async def binance(ctx, coin, base):
+    try:
+        response = requests.get(f'https://api.binance.com/api/v3/ticker/price?symbol={coin.upper()}{base.upper()}')
+        data = response.json()
+        price = data.get("price")
 
-    #switching respond on and off
-    if msg.startswith('$responding'): #the command starts with $responding
-        value = msg.split('$responding',1)[1]
+        if price:
+            await ctx.send(f'O valor do par {coin}/{base} é {price}')
+        else:
+            await ctx.send(f'O par {coin}/{base} é inválido')
+    except Exception as error:
+        await ctx.send("Ops... deu algum erro!")
+        print(error)
 
-        if value.lower() == 'true': #if value equals true: turn response on
-            db["responding"] = True
-            await message.channel.send("Responding is on")
-        if value.lower() == 'false': #if value equals false: turn response off
-            db["responding"] = False
-            await message.channel.send("Responding is off")  
+@bot.command(name="segredo")
+async def secret(ctx):
+    try:
+        await ctx.author.send("Walkthrough do Tutorial da ByLearn")
+    except discord.errors.Forbidden:
+        await ctx.send("Não posso te contar o segredo, habilite receber mensagens de qualquer pessoa do servidor (Opções>Privacidade)")
 
-    #if message.content.startswith('print json'): #Sends Json text
-    #    await message.channel.send('{}'.format(get_quote()))
-keep_alive()   
+@tasks.loop(seconds=10) #ten seconds
+async def current_time():
+    now = datetime.datetime.now()
 
-token = os.environ['TOKEN']
-client.run(token) #Running the bot
+    now = now.strfttime("%d/%m/%Y às %H:%M:%S")
+
+    channel = bot.get_channel("Insert ID of Channel Here")
+
+    await channel.send ("Data atual: " + now)
+
+token = "Defining Token"
+bot.run(token) #running the bot
