@@ -56,12 +56,47 @@ async def binance(ctx, coin, base):
         await ctx.send("Ops... deu algum erro!")
         print(error)
 
+#sending a private message
 @bot.command(name="segredo")
 async def secret(ctx):
     try:
         await ctx.author.send("Walkthrough do Tutorial da ByLearn")
     except discord.errors.Forbidden:
         await ctx.send("Não posso te contar o segredo, habilite receber mensagens de qualquer pessoa do servidor (Opções>Privacidade)")
+
+#getting role on reaction
+@bot.command()
+async def on_reaction_add(reaction, user):
+    print(reaction.emoji)
+    if reaction.emoji == ":thumbsup:":
+        role = user.get_role(role1_id)
+        await user.add_roles(role)
+    elif reaction.emoji == ":poop:":
+        role = user.get_role(role2_id)
+        await user.add_roles(role)
+
+#working with embeds
+@bot.command(name = 'foto')
+async def get_random_image(ctx):
+    url_image = "https://picsum.photos/1920/1080"
+
+    embed = discord.Embed(
+        title = "Resultado da busca de imagem",
+        description = "PS: a busca é totalmente aleatória",
+        color = 0x0000FF
+    )
+
+    embed.set_author(name=bot.user.name, icon_url=bot.user.avatar_url)
+    embed.set_footer(text="Feito por" + bot.user.name, icon_url=bot.user.avatar_url)
+
+    embed.add_field(name="API", value="Usamos a API do https://picsum.photos")
+    embed.add_field(name="Parâmetros", value="{largura}/{altura}")
+    
+    embed.add_field(name="Exemplo", value=url_image, inline=False)
+
+    embed.set_image(url=url_image)
+
+    await ctx.send(embed=embed)
 
 @tasks.loop(seconds=10) #ten seconds
 async def current_time():
