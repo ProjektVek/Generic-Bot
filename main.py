@@ -2,6 +2,9 @@ import datetime #importing datetime
 import discord #importing discord.py library
 from discord.ext import commands, tasks #importing commands and tasks from extensions
 import requests #library to use api's
+from decouple import config
+
+from discord.ext.commands.errors import MissingRequiredArgument, CommandNotFound
 
 bot = commands.Bot("!") #Bot invocation command
 
@@ -26,7 +29,17 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
-@bot.command(name='oi') #name -> text after comment
+#error treatment
+@bot.event
+async def on_comand_error(ctx, error):
+    if isinstance(error,MissingRequiredArgument): #if a required argument is identified
+        await ctx.send('Favor enviar todos os argumentos')
+    elif isinstance(error,CommandNotFound):
+        await ctx.send("O comando não existe")
+    else:
+        raise error
+
+@bot.command(name='oi', help="Envia um oi (Não requer argumento)") #name -> text after comment
 async def say_hello(ctx): #function to say hello | ctx = context
     name = ctx.author.name
 
@@ -35,13 +48,13 @@ async def say_hello(ctx): #function to say hello | ctx = context
     await ctx.send(response)
 
 #function to calculate
-@bot.command(name='calcular')
+@bot.command(name='calcular', help="Calcula uma expressão. Argumentos: Expressão")
 async def calculate_expression(ctx, *expression): #getting context and expression // * -> creates a tuple (Join the arguments as one)
     expression = "".join(expression) #this will join all expression with "" value after each element
     response = eval(expression) #eval() -> Evaluates the final value of the expression (Use with caution, can be used to inject commands)
 
 #currency conversion
-@bot.command()
+@bot.command(help='Verifica o preço de um par na binance. Não requer argumento')
 async def binance(ctx, coin, base):
     try:
         response = requests.get(f'https://api.binance.com/api/v3/ticker/price?symbol={coin.upper()}{base.upper()}')
@@ -57,7 +70,7 @@ async def binance(ctx, coin, base):
         print(error)
 
 #sending a private message
-@bot.command(name="segredo")
+@bot.command(name="segredo", help='Envia uma mensagem no privado')
 async def secret(ctx):
     try:
         await ctx.author.send("Walkthrough do Tutorial da ByLearn")
@@ -76,7 +89,7 @@ async def on_reaction_add(reaction, user):
         await user.add_roles(role)
 
 #working with embeds
-@bot.command(name = 'foto')
+@bot.command(name = 'foto', help='Envia uma foto. Não requer argumento')
 async def get_random_image(ctx):
     url_image = "https://picsum.photos/1920/1080"
 
@@ -108,5 +121,5 @@ async def current_time():
 
     await channel.send ("Data atual: " + now)
 
-token = "Defining Token"
+TOKEN = config("TOKEN") 
 bot.run(token) #running the bot

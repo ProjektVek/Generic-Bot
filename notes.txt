@@ -1,1 +1,2 @@
 await -> forcing command as synchronous
+Constants in Python are written in Upper Case
